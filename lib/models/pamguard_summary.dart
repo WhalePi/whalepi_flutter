@@ -131,14 +131,16 @@ class PamGuardSummary {
       double piTemp = 0.0;
 
       // Parse Sound Acquisition / Raw Data Summary
+      // The closing tag may be split across BLE packets, so also accept the
+      // outer block boundary (<\Data Acquisition>) as a terminator.
       final rawDataMatch = RegExp(
-        r'<RawDataSummary>(.*?)</RawDataSummary>',
+        r'<RawDataSummary>(.*?)(?:</RawDataSummary>|<\\Data Acquisition>)',
         dotAll: true,
       ).firstMatch(rawData);
 
       if (rawDataMatch != null) {
         final channelMatches = RegExp(
-          r'<channel index="(\d+)">\s*<mean>([-\d.]+)</mean>\s*<peakdB>([-\d.]+)</peakdB>\s*<rmsdB>([-\d.]+)</rmsdB>\s*</channel>',
+          r'<channel index="(\d+)">\s*<mean>([-\d.]+)</mean>(?:\s*<peakdB>([-\d.]+)</peakdB>)?(?:\s*<rmsdB>([-\d.]+)</rmsdB>)?\s*</channel>',
           dotAll: true,
         ).allMatches(rawDataMatch.group(1) ?? '');
 

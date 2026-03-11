@@ -180,7 +180,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
 
     // Debounce summary parsing — wait for all chunks to arrive
     _summaryDebounce?.cancel();
-    _summaryDebounce = Timer(const Duration(milliseconds: 500), () {
+    _summaryDebounce = Timer(const Duration(milliseconds: 1000), () {
       _tryParseSummary();
     });
 

@@ -154,8 +154,9 @@ class BLEPeripheral:
                 # Keep a copy for read-based polling clients
                 self.last_tx_value = byte_data[:]
                 # BLE has a max MTU, typically 20 bytes for default, up to 512.
-                # Chunk if necessary (most NUS implementations handle up to 240).
-                MAX_CHUNK = 240
+                # macOS/iOS often limit notification payload to 182 bytes
+                # (MTU 185 - 3 ATT overhead), regardless of MTU negotiation.
+                MAX_CHUNK = 180
                 for i in range(0, len(byte_data), MAX_CHUNK):
                     chunk = byte_data[i:i + MAX_CHUNK]
                     self.tx_characteristic.set_value(chunk)

@@ -173,10 +173,10 @@ class BluetoothLeService {
       }
 
       await device.discoverServices();
-      
+
       // Wait for iOS/macOS to finish setting up all handles/descriptors
       await Future.delayed(const Duration(milliseconds: 500));
-      
+
       // Use servicesList to get fresh references after discovery completes
       final services = device.servicesList;
 
@@ -195,52 +195,84 @@ class BluetoothLeService {
         }
       }
 
+      // Find all matching UART services and try each until setNotifyValue works
+      BluetoothCharacteristic? workingTx;
+      BluetoothCharacteristic? workingRx;
+
       for (final service in services) {
         final uartChars = _findUartCharacteristics(service);
         if (uartChars.isValid) {
-          _txCharacteristic = uartChars.txCharacteristic;
-          _rxCharacteristic = uartChars.rxCharacteristic;
+          _log('Found UART service candidate: ${service.uuid}');
 
-          _log('Found UART service: ${service.uuid}');
-          // Don't break — keep iterating to find the LAST matching service,
-          // which has the freshest/valid handles on iOS/macOS.
+          // Try to enable notifications on this service's RX characteristic
+          if (uartChars.rxCharacteristic != null) {
+            try {
+              await Future.delayed(const Duration(milliseconds: 100));
+              await uartChars.rxCharacteristic!.setNotifyValue(true);
+              _log(
+                'setNotifyValue SUCCEEDED for ${uartChars.rxCharacteristic!.uuid} on service ${service.uuid}',
+              );
+              workingTx = uartChars.txCharacteristic;
+              workingRx = uartChars.rxCharacteristic;
+              break; // Found a working one, stop looking
+            } catch (e) {
+              _log('setNotifyValue failed for service ${service.uuid}: $e');
+              // Try the next matching service
+            }
+          } else {
+            // No RX, but TX-only might still be useful
+            workingTx ??= uartChars.txCharacteristic;
+          }
         }
       }
 
-      if (_txCharacteristic != null || _rxCharacteristic != null) {
-          _log('Using TX: ${_txCharacteristic?.uuid}');
-          _log('Using RX: ${_rxCharacteristic?.uuid}');
+      // If none succeeded with setNotifyValue, fall back to last match
+      if (workingRx == null) {
+        _log('No service accepted setNotifyValue, using last match');
+        for (final service in services) {
+          final uartChars = _findUartCharacteristics(service);
+          if (uartChars.isValid) {
+            workingTx = uartChars.txCharacteristic;
+            workingRx = uartChars.rxCharacteristic;
+          }
+        }
+      }
 
-          // Enable notifications on RX characteristic
-          if (_rxCharacteristic != null) {
-            // Small delay to ensure connection is stable
-            await Future.delayed(const Duration(milliseconds: 100));
+      if (workingTx != null || workingRx != null) {
+        _txCharacteristic = workingTx;
+        _rxCharacteristic = workingRx;
+        _log('Using TX: ${_txCharacteristic?.uuid}');
+        _log('Using RX: ${_rxCharacteristic?.uuid}');
 
-            try {
+        // Enable notifications on RX characteristic (if not already done above)
+        if (_rxCharacteristic != null) {
+          try {
+            // Check if already notifying (from the loop above)
+            if (!_rxCharacteristic!.isNotifying) {
+              await Future.delayed(const Duration(milliseconds: 100));
               await _rxCharacteristic!.setNotifyValue(true);
-              _log('Notifications enabled');
-            } catch (e) {
-              // Some Pi-based BLE servers have broken CCCD but still send
-              // notifications automatically. Continue anyway.
-              _log('setNotifyValue failed (continuing): $e');
+              _log('Notifications enabled (fallback path)');
             }
-
-            // Wait a moment for the subscription to register on the peripheral
-            await Future.delayed(const Duration(milliseconds: 200));
-
-            _rxSubscription = _rxCharacteristic!.lastValueStream.listen(
-              (data) {
-                if (data.isNotEmpty) {
-                  onDataReceived?.call(Uint8List.fromList(data));
-                }
-              },
-              onError: (error) {
-                onError?.call('RX error: $error');
-              },
-            );
+          } catch (e) {
+            _log('setNotifyValue failed (continuing): $e');
           }
 
-          return true;
+          // Wait a moment for the subscription to register on the peripheral
+          await Future.delayed(const Duration(milliseconds: 200));
+
+          _rxSubscription = _rxCharacteristic!.onValueReceived.listen(
+            (data) {
+              if (data.isNotEmpty) {
+                onDataReceived?.call(Uint8List.fromList(data));
+              }
+            },
+            onError: (error) {
+              onError?.call('RX error: $error');
+            },
+          );
+        }
+
+        return true;
       }
 
       // If no known UART service found, try to find any writable/notify characteristics
@@ -275,7 +307,7 @@ class BluetoothLeService {
             }
             await Future.delayed(const Duration(milliseconds: 200));
 
-            _rxSubscription = _rxCharacteristic!.lastValueStream.listen(
+            _rxSubscription = _rxCharacteristic!.onValueReceived.listen(
               (data) {
                 if (data.isNotEmpty) {
                   onDataReceived?.call(Uint8List.fromList(data));
@@ -357,9 +389,7 @@ class BluetoothLeService {
 
   /// Send data as bytes
   Future<bool> sendBytes(Uint8List data) async {
-    _log('sendBytes called, data length: ${data.length}');
     if (!_isConnected || _txCharacteristic == null) {
-      _log('sendBytes failed: connected=$_isConnected, tx=$_txCharacteristic');
       onError?.call('Not connected or no TX characteristic');
       return false;
     }
@@ -369,15 +399,12 @@ class BluetoothLeService {
       // Split data if necessary
       final mtu = await _connectedDevice?.mtu.first ?? 20;
       final chunkSize = mtu - 3; // Account for ATT overhead
-      _log('MTU: $mtu, chunkSize: $chunkSize');
 
       if (data.length <= chunkSize) {
-        _log('Writing ${data.length} bytes to ${_txCharacteristic!.uuid}');
         await _txCharacteristic!.write(
           data.toList(),
-          withoutResponse: true, // Use writeWithoutResponse 
+          withoutResponse: true, // Use writeWithoutResponse
         );
-        _log('Write completed');
       } else {
         // Send in chunks
         for (int i = 0; i < data.length; i += chunkSize) {

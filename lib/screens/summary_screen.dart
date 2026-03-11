@@ -30,11 +30,14 @@ class SummaryScreen extends StatefulWidget {
   State<SummaryScreen> createState() => _SummaryScreenState();
 }
 
-class _SummaryScreenState extends State<SummaryScreen> {
+class _SummaryScreenState extends State<SummaryScreen>
+    with WidgetsBindingObserver {
   PamGuardSummary? _summary;
   StreamSubscription<PamGuardSummary>? _summarySubscription;
   bool _isSending = false;
   DateTime? _lastUpdate;
+  bool _autoRefresh = false;
+  Timer? _pollTimer;
 
   bool get _isConnected => widget.isTestMode
       ? (widget.mockService?.isConnected ?? false)
@@ -43,6 +46,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _summary = widget.initialSummary;
     if (_summary != null) {
       _lastUpdate = DateTime.now();
@@ -69,8 +73,46 @@ class _SummaryScreenState extends State<SummaryScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _pollTimer?.cancel();
     _summarySubscription?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _stopPolling();
+    } else if (state == AppLifecycleState.resumed && _autoRefresh) {
+      _startPolling();
+    }
+  }
+
+  void _toggleAutoRefresh() {
+    setState(() {
+      _autoRefresh = !_autoRefresh;
+    });
+    if (_autoRefresh) {
+      _sendCommand('summary'); // immediate first request
+      _startPolling();
+    } else {
+      _stopPolling();
+    }
+  }
+
+  void _startPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (_isConnected && !_isSending) {
+        _sendCommand('summary');
+      }
+    });
+  }
+
+  void _stopPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = null;
   }
 
   Future<void> _sendCommand(String command) async {
@@ -309,24 +351,51 @@ class _SummaryScreenState extends State<SummaryScreen> {
           Row(
             children: [
               Expanded(
-                child: _CommandButton(
-                  label: 'PING',
-                  onPressed: isConnected ? () => _sendCommand('ping') : null,
-                  isLoading: _isSending,
+                child: GestureDetector(
+                  onTap: isConnected ? _toggleAutoRefresh : null,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: _autoRefresh
+                            ? TerminalColors.primary
+                            : TerminalColors.grey,
+                      ),
+                      color: _autoRefresh
+                          ? TerminalColors.primary.withValues(alpha: 0.15)
+                          : TerminalColors.background,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          _autoRefresh ? Icons.sync : Icons.sync_disabled,
+                          size: 16,
+                          color: _autoRefresh
+                              ? TerminalColors.primary
+                              : TerminalColors.grey,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _autoRefresh ? 'AUTO ON' : 'AUTO OFF',
+                          style: TextStyle(
+                            fontFamily: 'monospace',
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: _autoRefresh
+                                ? TerminalColors.primary
+                                : TerminalColors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: _CommandButton(
-                  label: 'STATUS',
-                  onPressed: isConnected ? () => _sendCommand('status') : null,
-                  isLoading: _isSending,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _CommandButton(
-                  label: 'SUMMARY',
+                  label: 'REFRESH',
                   onPressed: isConnected ? () => _sendCommand('summary') : null,
                   isLoading: _isSending,
                 ),
@@ -590,7 +659,7 @@ class _RecorderSection extends StatelessWidget {
               Icons.circle,
               size: 10,
               color: recorder.isRecording
-                  ? TerminalColors.red
+                  ? TerminalColors.accent
                   : TerminalColors.grey,
             ),
             const SizedBox(width: 4),
@@ -601,8 +670,8 @@ class _RecorderSection extends StatelessWidget {
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
                 color: recorder.isRecording
-                    ? TerminalColors.red
-                    : TerminalColors.accent,
+                    ? TerminalColors.accent
+                    : TerminalColors.grey,
               ),
             ),
             const Spacer(),
