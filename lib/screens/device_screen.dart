@@ -8,6 +8,7 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import '../main.dart';
 import '../models/message.dart';
 import '../models/pamguard_summary.dart';
+import '../models/whalepi_status.dart';
 import '../services/bluetooth_le_service.dart';
 import '../services/mock_bluetooth_service.dart';
 import 'summary_screen.dart';
@@ -46,7 +47,13 @@ class _DeviceScreenState extends State<DeviceScreen> {
   final StreamController<PamGuardSummary> _summaryController =
       StreamController<PamGuardSummary>.broadcast();
   PamGuardSummary? _lastSummary;
+  WhalePiStatus? _lastStatus;
   final GlobalKey<State<SummaryScreen>> _summaryKey = GlobalKey();
+
+  // Buffer for accumulating status response data
+  final StringBuffer _statusBuffer = StringBuffer();
+  Timer? _statusDebounce;
+  bool _awaitingStatus = false;
 
   bool _isConnecting = true;
   bool _isConnected = false;
@@ -86,6 +93,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
     _sendFocusNode.dispose();
     _summaryController.close();
     _summaryDebounce?.cancel();
+    _statusDebounce?.cancel();
     if (_isTestMode) {
       _mockService?.disconnect();
     } else {
@@ -175,14 +183,23 @@ class _DeviceScreenState extends State<DeviceScreen> {
   void _onDataReceived(Uint8List data) {
     final text = utf8.decode(data, allowMalformed: true);
 
-    // Accumulate data for summary parsing
-    _dataBuffer.write(text);
+    // If awaiting status response, route to status buffer
+    if (_awaitingStatus) {
+      _statusBuffer.write(text);
+      _statusDebounce?.cancel();
+      _statusDebounce = Timer(const Duration(milliseconds: 1000), () {
+        _tryParseStatus();
+      });
+    } else {
+      // Accumulate data for summary parsing
+      _dataBuffer.write(text);
 
-    // Debounce summary parsing — wait for all chunks to arrive
-    _summaryDebounce?.cancel();
-    _summaryDebounce = Timer(const Duration(milliseconds: 1000), () {
-      _tryParseSummary();
-    });
+      // Debounce summary parsing — wait for all chunks to arrive
+      _summaryDebounce?.cancel();
+      _summaryDebounce = Timer(const Duration(milliseconds: 1000), () {
+        _tryParseSummary();
+      });
+    }
 
     if (_hexMode) {
       final hexString = BluetoothLeService.bytesToHex(data);
@@ -191,6 +208,19 @@ class _DeviceScreenState extends State<DeviceScreen> {
       // Decode and handle text data for terminal
       _receiveBuffer.write(text);
       _processReceivedText();
+    }
+  }
+
+  void _tryParseStatus() {
+    final data = _statusBuffer.toString();
+    _statusBuffer.clear();
+    _awaitingStatus = false;
+
+    if (data.isNotEmpty) {
+      final status = WhalePiStatus.parse(data);
+      if (mounted) {
+        setState(() => _lastStatus = status);
+      }
     }
   }
 
@@ -211,6 +241,9 @@ class _DeviceScreenState extends State<DeviceScreen> {
       if (data.contains('</')) {
         _dataBuffer.clear();
       }
+
+      // Now send a status request
+      _sendStatusCommand();
     }
 
     // Prevent buffer from growing too large
@@ -220,6 +253,17 @@ class _DeviceScreenState extends State<DeviceScreen> {
       );
       _dataBuffer.clear();
       _dataBuffer.write(trimmed);
+    }
+  }
+
+  Future<void> _sendStatusCommand() async {
+    if (!_isConnected) return;
+    _awaitingStatus = true;
+    _statusBuffer.clear();
+    if (_isTestMode) {
+      await _mockService?.sendString('status');
+    } else {
+      await _bluetoothService?.sendString('status');
     }
   }
 
@@ -426,9 +470,13 @@ class _DeviceScreenState extends State<DeviceScreen> {
         ),
         actions: _currentTab == 1 ? _buildTerminalActions() : null,
       ),
-      body: IndexedStack(
-        index: _currentTab,
+      body: Column(
         children: [
+          _buildStatusBar(),
+          Expanded(
+            child: IndexedStack(
+              index: _currentTab,
+              children: [
           // Summary tab
           SummaryScreen(
             key: _summaryKey,
@@ -442,9 +490,83 @@ class _DeviceScreenState extends State<DeviceScreen> {
           // Terminal tab
           _buildTerminalView(),
         ],
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: _buildBottomNav(),
     );
+  }
+
+  Widget _buildStatusBar() {
+    final status = _lastStatus;
+    if (status == null) {
+      return const SizedBox.shrink();
+    }
+
+    final pamColor = switch (status.pamguardStatus.toUpperCase()) {
+      'RUNNING' => TerminalColors.accent,
+      'STOPPED' => TerminalColors.red,
+      'ERROR' => TerminalColors.red,
+      _ => TerminalColors.yellow,
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: TerminalColors.surface,
+        border: Border(
+          bottom: BorderSide(
+            color: TerminalColors.primary.withValues(alpha: 0.4),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.circle, size: 8, color: pamColor),
+          const SizedBox(width: 6),
+          Text(
+            'PAM: ${status.pamguardStatus}',
+            style: TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: pamColor,
+            ),
+          ),
+          if (status.isXml) ...[
+            const SizedBox(width: 12),
+            Text(
+              'Restarts: ${status.restarts}',
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 11,
+                color: TerminalColors.textDim,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              status.uptimeFormatted.isNotEmpty
+                  ? 'Up: ${status.uptimeFormatted}'
+                  : 'Up: ${_formatUptime(status.uptimeSeconds)}',
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 11,
+                color: TerminalColors.textDim,
+              ),
+            ),
+          ] else
+            const Spacer(),
+        ],
+      ),
+    );
+  }
+
+  String _formatUptime(int seconds) {
+    final h = seconds ~/ 3600;
+    final m = (seconds % 3600) ~/ 60;
+    final s = seconds % 60;
+    return '${h}h ${m}m ${s}s';
   }
 
   void _copyAllMessages() {

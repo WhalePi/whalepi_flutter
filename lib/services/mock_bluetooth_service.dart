@@ -135,14 +135,23 @@ class MockBluetoothService {
   }
 
   String _generateStatusResponse() {
-    return '''Status Report
-=============
-Recording: ${_isRecording ? 'YES' : 'NO'}
-Temperature: ${_piTemperature.toStringAsFixed(1)}°C
-Free Space: ${(_freeSpace / 1024).toStringAsFixed(1)} GB
-File Size: ${_fileSize.toStringAsFixed(1)} MB
-Uptime: ${DateTime.now().difference(DateTime.now().subtract(const Duration(hours: 2))).inMinutes} min
-''';
+    final now = DateTime.now();
+    final startTime = now.subtract(const Duration(hours: 2));
+    final uptimeSeconds = now.difference(startTime).inSeconds;
+    final h = uptimeSeconds ~/ 3600;
+    final m = (uptimeSeconds % 3600) ~/ 60;
+    final s = uptimeSeconds % 60;
+
+    return '''<whalepidogStatus>
+  <pamguardStatus code="${_isRecording ? 1 : 0}">${_isRecording ? 'RUNNING' : 'STOPPED'}</pamguardStatus>
+  <watchdog>
+    <state>RUNNING</state>
+    <restarts>${_random.nextInt(5)}</restarts>
+    <uptimeSeconds>$uptimeSeconds</uptimeSeconds>
+    <uptimeFormatted>${h}h ${m}m ${s}s</uptimeFormatted>
+    <startTime>${startTime.toIso8601String().replaceAll('T', ' ').split('.').first}</startTime>
+  </watchdog>
+</whalepidogStatus>''';
   }
 
   String _generateSummaryXml() {
