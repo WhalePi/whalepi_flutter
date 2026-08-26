@@ -97,9 +97,19 @@ class _DeviceScreenState extends State<DeviceScreen> {
     _statusController.close();
     _summaryDebounce?.cancel();
     _statusDebounce?.cancel();
+    // Detach the callbacks first. disconnect() invokes them synchronously,
+    // and by this point the element is already defunct even though `mounted`
+    // is still true, so a setState from one of them would assert.
     if (_isTestMode) {
+      _mockService?.onDataReceived = null;
+      _mockService?.onConnectionStateChanged = null;
+      _mockService?.onError = null;
       _mockService?.disconnect();
     } else {
+      _bluetoothService?.onDataReceived = null;
+      _bluetoothService?.onConnectionStateChanged = null;
+      _bluetoothService?.onError = null;
+      _bluetoothService?.onLog = null;
       _bluetoothService?.disconnect();
     }
     super.dispose();
@@ -431,9 +441,15 @@ class _DeviceScreenState extends State<DeviceScreen> {
           children: [
             Row(
               children: [
-                Text(
-                  '> $deviceName',
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 14),
+                Flexible(
+                  child: Text(
+                    '> $deviceName',
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 14,
+                    ),
+                  ),
                 ),
                 if (_isTestMode) ...[
                   const SizedBox(width: 8),
