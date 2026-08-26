@@ -63,6 +63,7 @@ class RecorderSummary {
   final String state;
   final double freeSpaceMB;
   final double fileSizeMB;
+  final String fileName;
   final List<double> channelAmplitudesdB;
 
   RecorderSummary({
@@ -70,6 +71,7 @@ class RecorderSummary {
     this.state = 'unknown',
     this.freeSpaceMB = 0.0,
     this.fileSizeMB = 0.0,
+    this.fileName = '',
     this.channelAmplitudesdB = const [],
   });
 
@@ -222,6 +224,7 @@ class PamGuardSummary {
             double.tryParse(_extractTag(recData, 'freeSpaceMB') ?? '0') ?? 0.0;
         final fileSize =
             double.tryParse(_extractTag(recData, 'fileSizeMB') ?? '0') ?? 0.0;
+        final fileName = (_extractTag(recData, 'fileName') ?? '').trim();
 
         final channelAmps = <double>[];
         final ampMatches = RegExp(
@@ -236,6 +239,7 @@ class PamGuardSummary {
           state: state,
           freeSpaceMB: freeSpace,
           fileSizeMB: fileSize,
+          fileName: fileName,
           channelAmplitudesdB: channelAmps,
         );
       }

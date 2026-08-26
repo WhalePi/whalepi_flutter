@@ -24,6 +24,7 @@ class MockBluetoothService {
   bool _isRecording = false;
   double _piTemperature = 45.0;
   double _fileSize = 0.0;
+  String _fileName = '';
   double _freeSpace = 128000.0; // 128 GB in MB
   final Random _random = Random();
 
@@ -46,6 +47,7 @@ class MockBluetoothService {
     _isConnected = true;
     _isRecording = false;
     _fileSize = 0.0;
+    _fileName = '';
     onConnectionStateChanged?.call(true);
 
     // Start simulating periodic data changes if recording
@@ -108,6 +110,7 @@ class MockBluetoothService {
       case 'start':
         _isRecording = true;
         _fileSize = 0.0;
+        _fileName = _makeFileName();
         response = 'Recording started';
         break;
       case 'stop':
@@ -154,6 +157,15 @@ class MockBluetoothService {
 </whalepidogStatus>''';
   }
 
+  /// Mimics PAMGuard's recording file naming, e.g. PAM_20260225_101028.wav
+  String _makeFileName() {
+    final now = DateTime.now();
+    String two(int v) => v.toString().padLeft(2, '0');
+    final date = '${now.year}${two(now.month)}${two(now.day)}';
+    final time = '${two(now.hour)}${two(now.minute)}${two(now.second)}';
+    return 'PAM_${date}_$time.wav';
+  }
+
   String _generateSummaryXml() {
     final now = DateTime.now();
     final timeStr =
@@ -196,6 +208,7 @@ class MockBluetoothService {
     <state>${_isRecording ? 'Recording' : 'Idle'}</state>
     <freeSpaceMB>${_freeSpace.toStringAsFixed(1)}</freeSpaceMB>
     <fileSizeMB>${_fileSize.toStringAsFixed(1)}</fileSizeMB>
+    <fileName>$_fileName</fileName>
     <channel index="0">${ch0Rms.toStringAsFixed(1)}</channel>
     <channel index="1">${ch1Rms.toStringAsFixed(1)}</channel>
   </RecorderSummary>

@@ -303,18 +303,26 @@ class _SummaryScreenState extends State<SummaryScreen>
     );
   }
 
-  Widget _buildSummaryContent() {
-    return ListView(
-      padding: const EdgeInsets.all(12),
-      children: [
-        // PAMGuard Time (only shown when available)
-        if (_summary!.pamGuardTime != null)
-          _PamGuardTimeRow(pamGuardTime: _summary!.pamGuardTime!),
+  /// Width at which the module summary panes split into two columns.
+  ///
+  /// Phones and portrait 11" iPads (834pt) stay on one column; landscape iPads
+  /// and portrait 12.9" iPads (1024pt) get two. Keyed off width rather than
+  /// orientation so iPad Split View slices behave sensibly too.
+  static const double _twoColumnBreakpoint = 900;
 
-        if (_summary!.pamGuardTime != null) const SizedBox(height: 12),
-
-        // Sound Acquisition
-        _SectionCard(
+  /// The module panes in display order, without spacing between them.
+  ///
+  /// Each pane carries a rough count of the content rows it renders, which the
+  /// two-column layout uses to keep the columns a similar length.
+  List<({int rows, Widget card})> _summarySections() {
+    final recorder = _summary!.recorder;
+    return [
+      // Sound Acquisition
+      (
+        rows: _summary!.audioChannels.isEmpty
+            ? 1
+            : _summary!.audioChannels.length * 2,
+        card: _SectionCard(
           title: 'Sound Acquisition',
           child: Column(
             children: [
@@ -334,28 +342,31 @@ class _SummaryScreenState extends State<SummaryScreen>
             ],
           ),
         ),
+      ),
 
-        const SizedBox(height: 12),
-
-        // Sound Recorder
-        _SectionCard(
+      // Sound Recorder
+      (
+        rows: recorder.fileName.isNotEmpty ? 4 : 3,
+        card: _SectionCard(
           title: 'Sound Recorder',
-          child: _RecorderSection(recorder: _summary!.recorder),
+          child: _RecorderSection(recorder: recorder),
         ),
+      ),
 
-        const SizedBox(height: 12),
-
-        // GPS
-        _SectionCard(
+      // GPS
+      (
+        rows: 3,
+        card: _SectionCard(
           title: 'GPS',
           child: _GpsSection(gps: _summary!.gps),
         ),
+      ),
 
-        const SizedBox(height: 12),
-
-        // NMEA
-        if (_summary!.nmeaSentence.isNotEmpty)
-          _SectionCard(
+      // NMEA
+      if (_summary!.nmeaSentence.isNotEmpty)
+        (
+          rows: 1,
+          card: _SectionCard(
             title: 'NMEA',
             child: Text(
               _summary!.nmeaSentence,
@@ -366,12 +377,13 @@ class _SummaryScreenState extends State<SummaryScreen>
               ),
             ),
           ),
+        ),
 
-        if (_summary!.nmeaSentence.isNotEmpty) const SizedBox(height: 12),
-
-        // Analog Sensors
-        if (_summary!.analogSensors.isNotEmpty)
-          _SectionCard(
+      // Analog Sensors
+      if (_summary!.analogSensors.isNotEmpty)
+        (
+          rows: _summary!.analogSensors.length,
+          card: _SectionCard(
             title: 'Analog Sensors',
             child: Column(
               children: _summary!.analogSensors.map((sensor) {
@@ -379,24 +391,102 @@ class _SummaryScreenState extends State<SummaryScreen>
               }).toList(),
             ),
           ),
+        ),
 
-        if (_summary!.analogSensors.isNotEmpty) const SizedBox(height: 12),
-
-        // Pi Temperature
-        _SectionCard(
+      // Pi Temperature
+      (
+        rows: 1,
+        card: _SectionCard(
           title: 'Pi Temperature',
           child: _TemperatureBar(temperature: _summary!.piTemperature),
         ),
+      ),
 
-        // Database
-        if (_summary!.database != null) const SizedBox(height: 12),
-
-        if (_summary!.database != null)
-          _SectionCard(
+      // Database
+      if (_summary!.database != null)
+        (
+          rows: 3,
+          card: _SectionCard(
             title: 'PAMGuard Database',
             child: _DatabaseSection(database: _summary!.database!),
           ),
+        ),
+    ];
+  }
+
+  /// Interleaves fixed-height spacers between [children].
+  List<Widget> _withGaps(List<Widget> children) {
+    return [
+      for (var i = 0; i < children.length; i++) ...[
+        if (i > 0) const SizedBox(height: 12),
+        children[i],
       ],
+    ];
+  }
+
+  Widget _buildSummaryContent() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final sections = _summarySections();
+        // PAMGuard Time (only shown when available) spans the full width.
+        final banner = _summary!.pamGuardTime != null
+            ? _PamGuardTimeRow(pamGuardTime: _summary!.pamGuardTime!)
+            : null;
+
+        if (constraints.maxWidth < _twoColumnBreakpoint) {
+          return ListView(
+            padding: const EdgeInsets.all(12),
+            children: _withGaps([
+              ?banner,
+              for (final section in sections) section.card,
+            ]),
+          );
+        }
+
+        // Each pane goes to whichever column is currently shorter, so the two
+        // stay a similar length whatever sections this summary contains.
+        final left = <Widget>[];
+        final right = <Widget>[];
+        var leftRows = 0;
+        var rightRows = 0;
+        for (final section in sections) {
+          if (leftRows <= rightRows) {
+            left.add(section.card);
+            leftRows += section.rows;
+          } else {
+            right.add(section.card);
+            rightRows += section.rows;
+          }
+        }
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (banner != null) ...[banner, const SizedBox(height: 12)],
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: _withGaps(left),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: _withGaps(right),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -843,6 +933,33 @@ class _RecorderSection extends StatelessWidget {
             ),
           ],
         ),
+        if (recorder.fileName.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'File: ',
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                  color: TerminalColors.grey,
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  recorder.fileName,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                    color: TerminalColors.text,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: 8),
         Text(
           'File size: ${recorder.fileSizeMB.toStringAsFixed(1)} MB  (${recorder.fileSizeGB.toStringAsFixed(3)} GB)',
@@ -943,40 +1060,53 @@ class _GpsSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        Row(
+        // Lat and lon drop onto separate lines when the pane is too narrow for
+        // both — two-column layouts halve the width a pane has to play with.
+        Wrap(
+          spacing: 16,
+          runSpacing: 4,
           children: [
-            const Text(
-              'Lat: ',
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 12,
-                color: TerminalColors.grey,
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Lat: ',
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                    color: TerminalColors.grey,
+                  ),
+                ),
+                Text(
+                  gps.formattedLat,
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                    color: TerminalColors.text,
+                  ),
+                ),
+              ],
             ),
-            Text(
-              gps.formattedLat,
-              style: const TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 12,
-                color: TerminalColors.text,
-              ),
-            ),
-            const SizedBox(width: 16),
-            const Text(
-              'Lon: ',
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 12,
-                color: TerminalColors.grey,
-              ),
-            ),
-            Text(
-              gps.formattedLon,
-              style: const TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 12,
-                color: TerminalColors.text,
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Lon: ',
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                    color: TerminalColors.grey,
+                  ),
+                ),
+                Text(
+                  gps.formattedLon,
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                    color: TerminalColors.text,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
