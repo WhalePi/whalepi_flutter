@@ -274,3 +274,19 @@ APP_STORE_LISTING.md                   # App Store Connect copy and review notes
 - [flutter_blue_plus](https://pub.dev/packages/flutter_blue_plus)
 - [Flutter Documentation](https://docs.flutter.dev/)
 - [WhalePi install guide](https://github.com/WhalePi/install_whalepi)
+
+## WhalePi Privacy Policy
+
+WhalePi does not collect, store, or transmit any personal data.
+
+The app communicates only with WhalePi recording hardware over a direct
+Bluetooth Low Energy connection. It has no account system, no analytics,
+no advertising, and no network or server component. Data read from a
+connected device stays on your phone and is not saved after the app is
+closed.
+
+Bluetooth access is used solely to discover and connect to WhalePi
+devices.
+
+Contact: macster110-at-gmail.com
+Last updated: 27/08/2026
