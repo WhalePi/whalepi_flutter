@@ -139,49 +139,191 @@ Last updated: <date>
 
 # App Review Notes
 
-Paste into **App Review Information → Notes** in App Store Connect.
-This is the field that most affects whether a hardware companion app
-clears review on the first pass.
+Apple asked for seven specific items after the first submission. The block
+below answers all of them and is meant to be pasted into **App Review
+Information -> Notes** in App Store Connect.
+
+Two things must be filled in before pasting, marked `[[ ]]` in the text:
+the screen recording link and the tested-device list. Do not leave the
+placeholders in.
 
 ```
-WhalePi is a companion app for WhalePi passive acoustic recording
-devices — open-source Raspberry Pi based underwater sound recorders used
-in marine mammal research. The app connects to this hardware over
-Bluetooth Low Energy to display recorder status and send commands.
+WhalePi is a companion app for WhalePi passive acoustic recording devices:
+open-source Raspberry Pi based underwater sound recorders used in marine
+mammal research. The app connects to that hardware over Bluetooth Low
+Energy to show recorder status and send commands.
 
-NO HARDWARE IS NEEDED TO REVIEW THIS APP.
+NO HARDWARE IS NEEDED TO REVIEW THIS APP. A full simulator is built in.
+See section 4 for the exact steps.
 
-A full simulator is built into the app:
+--------------------------------------------------------------------
+1. SCREEN RECORDING
+--------------------------------------------------------------------
+
+A screen recording captured on a physical iPhone running the current iOS
+is provided here: [[ RECORDING LINK ]]
+
+It starts from app launch and shows the typical flow: the device list,
+enabling the built-in Test Mode, connecting to the simulated device, the
+Summary dashboard, and the Terminal sending commands and receiving
+replies.
+
+Regarding the specific flows Apple listed:
+
+- Account registration, login, account deletion: NONE. The app has no
+  account system of any kind. There is nothing to register, log into, or
+  delete.
+- Paid content, purchases, subscriptions: NONE. The app is free, contains
+  no in-app purchases, no subscriptions, and no paid tiers.
+- User-generated content: NONE. Users cannot create, upload, post, or
+  share content. There is no social feature, so reporting and blocking
+  mechanisms do not apply.
+- Prompts for sensitive data or device capabilities: ONE. On first scan
+  iOS shows the standard Bluetooth permission prompt. This appears in the
+  recording. The app requests no other permission on iOS: no location, no
+  contacts, no camera, no microphone, and no App Tracking Transparency
+  prompt, because the app does no tracking and no advertising.
+
+--------------------------------------------------------------------
+2. DEVICES AND OPERATING SYSTEMS TESTED
+--------------------------------------------------------------------
+
+[[ CONFIRM AND EXTEND THIS LIST BEFORE SUBMITTING ]]
+
+Physical devices:
+- iPhone 17e, iOS 26.5.2 (release build installed and run)
+
+Simulators:
+- iPhone 17 Pro Max, iOS 26
+- iPad Pro 13-inch (M5), iOS 26
+
+Minimum supported OS is iOS 15.0.
+
+--------------------------------------------------------------------
+3. FUNCTION, AUDIENCE, AND VALUE
+--------------------------------------------------------------------
+
+What it does: displays the live status of a WhalePi acoustic recorder and
+lets the user send commands to it over a direct Bluetooth connection.
+Status includes whether recording is running, per-channel audio levels,
+GPS position and fix, the current recording file name and size, free disk
+space, database write counts, and Raspberry Pi core temperature.
+
+Who it is for: marine biologists, bioacousticians, conservation staff, and
+citizen-science volunteers who deploy WhalePi hydrophone recorders to
+monitor whales, dolphins, and other underwater sound.
+
+The problem it solves: these recorders are deployed in the field, often on
+boats or at remote coastal sites, sealed in waterproof enclosures. Before
+this app, checking whether a unit was recording correctly meant opening
+the enclosure and connecting a laptop, which risks water ingress and is
+impractical on a moving boat. The app makes that check a phone in a
+pocket, with the enclosure left sealed.
+
+--------------------------------------------------------------------
+4. SETUP AND ACCESS TO MAIN FEATURES
+--------------------------------------------------------------------
+
+No login credentials exist or are needed. No sample files are needed.
+
+To review every feature without WhalePi hardware:
 
 1. Launch the app. The device list screen appears.
-2. Tap the flask icon in the top-right of the navigation bar.
-   A "TEST" badge appears in the title and a confirmation message reads
+2. Tap the flask icon in the top right of the navigation bar. A yellow
+   "TEST" badge appears in the title and a message confirms
    "Test mode enabled - connect to WhalePi Simulator".
-3. Tap the "WhalePi Simulator" entry that appears in the device list.
-4. The app connects to the simulator and both tabs become usable:
-   - The Summary tab shows a live dashboard with generated audio levels,
-     GPS position, recorder state and system temperature.
-   - The Terminal tab accepts commands. Try: status, summary, start, stop.
-     The simulator replies exactly as real hardware does.
+3. Tap the "WhalePi Simulator" entry now shown in the device list.
+4. The app connects and both tabs become usable:
+   - SUMMARY tab: a live dashboard with generated audio levels, GPS
+     position, recorder state, temperature, and database activity.
+   - TERMINAL tab: type a command and tap SEND. Try: status, summary,
+     start, stop, ping. The simulator replies exactly as real hardware
+     does.
 
-Test mode requires no Bluetooth permission and works with Bluetooth
-turned off, so it can be reviewed on any device including one with
-Bluetooth disabled.
+Test Mode needs no Bluetooth permission and works with Bluetooth switched
+off entirely, so it can be reviewed on any device in any state.
 
-BLUETOOTH USAGE
+--------------------------------------------------------------------
+5. EXTERNAL SERVICES, TOOLS, AND PLATFORMS
+--------------------------------------------------------------------
 
-The app requests Bluetooth permission to scan for and connect to nearby
-WhalePi devices. This is the app's core function. It does not use
-Bluetooth for tracking, beacons, proximity marketing, or any purpose
-other than communicating with the user's own recording hardware.
+NONE. The app has no network component whatsoever.
 
-DATA AND ACCOUNTS
+It makes no HTTP requests, opens no sockets, and contacts no server. There
+is no data provider, no authentication service, no payment processor, no
+analytics or crash reporting SDK, no advertising SDK, and no AI or machine
+learning service.
 
-There is no account or login. The app has no network component, no
-analytics, and no server. Nothing is collected or transmitted.
+The only external communication is a direct Bluetooth Low Energy link to
+the user's own WhalePi hardware, using the Nordic UART Service profile.
 
-Project background: https://github.com/WhalePi/install_whalepi
+The app is built with Flutter and uses two open-source packages:
+- flutter_blue_plus (Bluetooth Low Energy transport)
+- permission_handler (runtime permission requests)
+
+Neither transmits data off the device.
+
+--------------------------------------------------------------------
+6. REGIONAL DIFFERENCES
+--------------------------------------------------------------------
+
+There are none. The app behaves identically in every region and territory.
+
+There is no geo-gating, no region-specific content, no region-specific
+pricing, and no server that could vary by region. The interface is English
+only. All function depends solely on the presence of the user's own
+Bluetooth hardware, which is region independent.
+
+--------------------------------------------------------------------
+7. REGULATED INDUSTRY AND THIRD-PARTY MATERIAL
+--------------------------------------------------------------------
+
+The app does not operate in a regulated industry. It is a hardware
+companion utility for scientific recording equipment. It provides no
+medical, financial, legal, gambling, or health service, and it makes no
+regulated claims.
+
+It contains no protected third-party material. All artwork and interface
+elements are original to this project. The app does not bundle,
+redistribute, or embed PAMGuard or any other third-party application; it
+sends text commands to hardware the user already owns and operates, and
+displays the replies.
+
+WhalePi hardware and its software are open source:
+https://github.com/WhalePi/install_whalepi
+
+No licence, credential, or authorisation from a third party is required to
+provide the functionality in this app.
 ```
+
+---
+
+# Producing the screen recording (item 1)
+
+Apple wants this captured on a physical device, so it cannot be recorded
+from a simulator. Use the iPhone you already deploy to.
+
+1. On the iPhone, add Screen Recording to Control Centre if it is not
+   there: Settings -> Control Centre -> Screen Recording.
+2. Force-quit WhalePi first, so the recording genuinely begins with a cold
+   launch. Reviewers look for this.
+3. Start the screen recording, then launch the app from the home screen.
+4. Walk the flow without rushing, roughly 60 to 90 seconds:
+   - the device list appearing, and the Bluetooth permission prompt if it
+     has not already been granted (delete and reinstall the app first if
+     you want the prompt on camera, which is worth doing since Apple
+     asked about permission prompts)
+   - tap the flask icon, so the TEST badge appears
+   - tap "WhalePi Simulator" to connect
+   - the SUMMARY dashboard, pausing on the live values, and scrolling
+     down to GPS, temperature, and database
+   - the TERMINAL tab: send `status`, then `summary`, letting each reply
+     finish
+   - toggle HEX mode briefly, then back
+5. Stop the recording, then upload it somewhere with a stable public link
+   and paste that link into the notes at [[ RECORDING LINK ]].
+
+Do not narrate or edit it. A plain, unhurried capture is what they want.
 
 ---
 
