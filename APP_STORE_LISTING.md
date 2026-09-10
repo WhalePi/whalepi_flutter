@@ -40,7 +40,7 @@ recording from your phone.
 
 ```
 WhalePi is the companion app for WhalePi passive acoustic recording
-devices — Raspberry Pi based hydrophone recorders used to monitor
+devices — low-cost hydrophone recorders used to monitor
 whales, dolphins and other underwater sound.
 
 Connect to a nearby WhalePi over Bluetooth Low Energy to check on a
@@ -51,10 +51,10 @@ SUMMARY DASHBOARD
 
 See the state of the recorder at a glance:
 
-• Recording status — whether PAMGuard is currently running
+• Recording status — whether the recorder is currently running
 • Audio levels — live input levels from the hydrophone
 • GPS — position and fix status
-• System temperature — Raspberry Pi core temperature
+• System temperature — recorder processor temperature
 • Database activity — write counts and failure counts
 
 TERMINAL
@@ -70,8 +70,7 @@ A full command interface for anyone who wants the raw connection:
 DEVICE DISCOVERY
 
 • Scans for nearby Bluetooth Low Energy devices
-• Works with the Nordic UART Service, HM-10 modules, and other
-  compatible BLE UART profiles
+• Works with standard Bluetooth Low Energy serial (UART) profiles
 • Live connection status so you know where you stand
 
 DESIGNED FOR FIELDWORK
@@ -96,10 +95,10 @@ https://github.com/WhalePi/install_whalepi
 ## Keywords (100 chars max, comma-separated, no spaces after commas)
 
 ```
-bluetooth,BLE,hydrophone,acoustic,marine,whale,dolphin,PAMGuard,raspberry,recorder,terminal,UART
+bluetooth,BLE,hydrophone,acoustic,marine,whale,dolphin,bioacoustics,recorder,terminal,UART,logger
 ```
 
-That is 96 characters. Do not repeat the app name or subtitle words —
+That is 97 characters. Do not repeat the app name or subtitle words —
 Apple already indexes those, so repeating them wastes the budget.
 
 ## Support URL (required)
