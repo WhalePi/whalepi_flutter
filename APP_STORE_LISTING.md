@@ -40,12 +40,13 @@ recording from your phone.
 
 ```
 WhalePi is the companion app for WhalePi passive acoustic recording
-devices — low-cost hydrophone recorders used to monitor
-whales, dolphins and other underwater sound.
+devices. The WhalePi recording system is a low-power acoustic, GPS,
+depth and temperature recorder that works with a wide range of USB
+soundcards, allowing it to record whales, dolphins and porpoises.
 
-Connect to a nearby WhalePi over Bluetooth Low Energy to check on a
-deployment without opening the enclosure or carrying a laptop into the
-field.
+The app connects to a nearby WhalePi over Bluetooth Low Energy so you
+can check on a deployment without opening the enclosure or carrying a
+laptop into the field.
 
 SUMMARY DASHBOARD
 
@@ -54,7 +55,7 @@ See the state of the recorder at a glance:
 • Recording status — whether the recorder is currently running
 • Audio levels — live input levels from the hydrophone
 • GPS — position and fix status
-• System temperature — recorder processor temperature
+• System temperature — recorder core temperature
 • Database activity — write counts and failure counts
 
 TERMINAL
